@@ -7,6 +7,7 @@ import * as bcrypt from 'bcrypt';
 import { SignupInput } from 'src/auth/dto/inputs/signup.input';
 import { User } from './entities/user.entity';
 import { ValidRoles } from 'src/auth/enums/valid-roles.enum';
+import { UpdateUserInput } from './dto/update-user.input';
 
 @Injectable()
 export class UsersService {
@@ -75,9 +76,15 @@ export class UsersService {
     
   }
 
-  // update(id: number, updateUserInput: UpdateUserInput) {
-  //   return `This action updates a #${id} user`;
-  // }
+  async update(id: String, updateUserInput: UpdateUserInput, updateBy: User): Promise<User> {
+    try {
+      const user = await this.usersRepository.preload({...updateUserInput});
+      user.lastUpdateBy = updateBy;
+      return await this.usersRepository.save(user);
+    } catch (error) {
+      this.handleDBError(error);
+    }
+  }
 
   async block(id: string, adminUser: User): Promise<User> {
     

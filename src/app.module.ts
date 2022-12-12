@@ -8,18 +8,42 @@ import { join } from 'path';
 import { ItemsModule } from './items/items.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { JwtService } from '@nestjs/jwt';
 
 @Module({
   imports: [
     ConfigModule.forRoot(),
-    GraphQLModule.forRoot<ApolloDriverConfig>({
+    GraphQLModule.forRootAsync({
       driver: ApolloDriver,
-      autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
-      playground: false,
-      plugins: [
-        ApolloServerPluginLandingPageLocalDefault
-      ]
+      imports: [ AuthModule ],
+      inject: [ JwtService ],
+      useFactory: async( jwtService: JwtService ) => ({
+        playground: false,
+        autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
+        plugins: [
+          ApolloServerPluginLandingPageLocalDefault
+        ],
+        context({ req }) {
+          //? ---- Bloqueo de Squema GraphQL cuando no hay Token o no es valido -----
+          const token = req.headers.authorization?.replace('Bearer ', '');
+          if( !token ) throw new Error("Token needed");          
+          
+          const payload = jwtService.decode(token);
+          if( !payload ) throw new Error("Token not valid");
+          //? -----------------------------------------------------------------------
+        }
+      })
     }),
+    //* ----- Configuración Básica de GraphQL -------
+    // GraphQLModule.forRoot<ApolloDriverConfig>({
+    //   driver: ApolloDriver,
+    //   autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
+    //   playground: false,
+    //   plugins: [
+    //     ApolloServerPluginLandingPageLocalDefault
+    //   ]
+    // }),
+    //* ----------------------------------------------
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST,
